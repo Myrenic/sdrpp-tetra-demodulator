@@ -65,10 +65,15 @@ public:
             config.conf[name]["hostname"] = "localhost";
             config.conf[name]["port"] = 8355;
             config.conf[name]["sending"] = false;
+            config.conf[name]["show_plain_text_values"] = false;
+        }
+        if (!config.conf[name].contains("show_plain_text_values")) {
+            config.conf[name]["show_plain_text_values"] = false;
         }
         decoder_mode = config.conf[name]["mode"];
         strcpy(hostname, std::string(config.conf[name]["hostname"]).c_str());
         port = config.conf[name]["port"];
+        show_plain_text_values = config.conf[name]["show_plain_text_values"];
         bool startNow = config.conf[name]["sending"];
         config.release(true);
 
@@ -232,6 +237,11 @@ private:
 
         if(_this->decoder_mode == 0) {
             //OSMO-TETRA
+            if (ImGui::Checkbox(CONCAT("Show plain text values##_", _this->name), &(_this->show_plain_text_values))) {
+                config.acquire();
+                config.conf[_this->name]["show_plain_text_values"] = _this->show_plain_text_values;
+                config.release(true);
+            }
             int dec_st = _this->osmotetradecoder.getRxState();
             ImGui::BoxIndicator(ImGui::GetFontSize()*2, (dec_st == 0) ? IM_COL32(230, 5, 5, 255) : ((dec_st == 2) ? IM_COL32(5, 230, 5, 255) : IM_COL32(230, 230, 5, 255)));
             ImGui::SameLine();
@@ -245,29 +255,39 @@ private:
             ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%02d", _this->osmotetradecoder.getCurrMultiframe()); ImGui::SameLine();
             ImGui::Text("| Frame: "); ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%02d", _this->osmotetradecoder.getCurrFrame());
-            ImGui::Text("Timeslots: ");
-            for(int i = 0; i < 4; i++) {
-                switch(_this->osmotetradecoder.getTimeslotContent(i)) {
-                    case 0:
-                        ImGui::SameLine();
-                        ImGui::TextColored(ImVec4(0.8, 0.8, 0.8, 1.0), "   UL  ");
-                        break;
-                    case 1:
-                        ImGui::SameLine();
-                        ImGui::TextColored(ImVec4(0.95, 0.05, 0.95, 1.0), " DATA  ");
-                        break;
-                    case 2:
-                        ImGui::SameLine();
-                        ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "  NDB  ");
-                        break;
-                    case 3:
-                        ImGui::SameLine();
-                        ImGui::TextColored(ImVec4(0.05, 0.95, 0.95, 1.0), " SYNC  ");
-                        break;
-                    case 4:
-                        ImGui::SameLine();
-                        ImGui::TextColored(ImVec4(0.05, 0.95, 0.05, 1.0), " VOICE ");
-                        break;
+            if (_this->show_plain_text_values) {
+                ImGui::Text(
+                    "Timeslots (raw): %d %d %d %d",
+                    _this->osmotetradecoder.getTimeslotContent(0),
+                    _this->osmotetradecoder.getTimeslotContent(1),
+                    _this->osmotetradecoder.getTimeslotContent(2),
+                    _this->osmotetradecoder.getTimeslotContent(3)
+                );
+            } else {
+                ImGui::Text("Timeslots: ");
+                for(int i = 0; i < 4; i++) {
+                    switch(_this->osmotetradecoder.getTimeslotContent(i)) {
+                        case 0:
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(0.8, 0.8, 0.8, 1.0), "   UL  ");
+                            break;
+                        case 1:
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(0.95, 0.05, 0.95, 1.0), " DATA  ");
+                            break;
+                        case 2:
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "  NDB  ");
+                            break;
+                        case 3:
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(0.05, 0.95, 0.95, 1.0), " SYNC  ");
+                            break;
+                        case 4:
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(0.05, 0.95, 0.05, 1.0), " VOICE ");
+                            break;
+                    }
                 }
             }
             int crc_failed = _this->osmotetradecoder.getLastCrcFail();
@@ -285,22 +305,34 @@ private:
             }
             int dl_usg = _this->osmotetradecoder.getDlUsage();
             int ul_usg = _this->osmotetradecoder.getUlUsage();
-            ImGui::Text("DL:");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%7.3f", ((float)_this->osmotetradecoder.getDlFreq()/1000000.0f));ImGui::SameLine();
-            ImGui::Text(" MHz ");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), (dl_usg == 0 ? "Unalloc" : (dl_usg == 1 ? "Assigned ctl" : (dl_usg == 2 ? "Common ctl" : (dl_usg == 3 ? "Reserved" : "Traffic")))));
-            ImGui::Text("UL:");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%7.3f", ((float)_this->osmotetradecoder.getUlFreq()/1000000.0f));ImGui::SameLine();
-            ImGui::Text(" MHz ");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), (ul_usg == 0 ? "Unalloc" : "Traffic"));
-            ImGui::Text("Access1: ");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%c", _this->osmotetradecoder.getAccess1Code());ImGui::SameLine();
-            ImGui::Text("/");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%d", _this->osmotetradecoder.getAccess1());ImGui::SameLine();
-            ImGui::Text("| Access2: ");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%c", _this->osmotetradecoder.getAccess2Code());ImGui::SameLine();
-            ImGui::Text("/");ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%d", _this->osmotetradecoder.getAccess2());
+            if (_this->show_plain_text_values) {
+                ImGui::Text("DL (raw): freq_hz=%d usage=%d", _this->osmotetradecoder.getDlFreq(), dl_usg);
+                ImGui::Text("UL (raw): freq_hz=%d usage=%d", _this->osmotetradecoder.getUlFreq(), ul_usg);
+                ImGui::Text(
+                    "Access (raw): code1=0x%02X len1=%d | code2=0x%02X len2=%d",
+                    (unsigned int)((unsigned char)_this->osmotetradecoder.getAccess1Code()),
+                    _this->osmotetradecoder.getAccess1(),
+                    (unsigned int)((unsigned char)_this->osmotetradecoder.getAccess2Code()),
+                    _this->osmotetradecoder.getAccess2()
+                );
+            } else {
+                ImGui::Text("DL:");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%7.3f", ((float)_this->osmotetradecoder.getDlFreq()/1000000.0f));ImGui::SameLine();
+                ImGui::Text(" MHz ");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), (dl_usg == 0 ? "Unalloc" : (dl_usg == 1 ? "Assigned ctl" : (dl_usg == 2 ? "Common ctl" : (dl_usg == 3 ? "Reserved" : "Traffic")))));
+                ImGui::Text("UL:");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%7.3f", ((float)_this->osmotetradecoder.getUlFreq()/1000000.0f));ImGui::SameLine();
+                ImGui::Text(" MHz ");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), (ul_usg == 0 ? "Unalloc" : "Traffic"));
+                ImGui::Text("Access1: ");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%c", _this->osmotetradecoder.getAccess1Code());ImGui::SameLine();
+                ImGui::Text("/");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%d", _this->osmotetradecoder.getAccess1());ImGui::SameLine();
+                ImGui::Text("| Access2: ");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%c", _this->osmotetradecoder.getAccess2Code());ImGui::SameLine();
+                ImGui::Text("/");ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%d", _this->osmotetradecoder.getAccess2());
+            }
             ImGui::Text("MCC: ");ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "%03d", _this->osmotetradecoder.getMcc());ImGui::SameLine();
             ImGui::Text("| MNC: ");ImGui::SameLine();
@@ -309,17 +341,37 @@ private:
             ImGui::TextColored(ImVec4(0.95, 0.95, 0.05, 1.0), "0x%02x", _this->osmotetradecoder.getCc());
             ImVec4 on_color = ImVec4(0.05, 0.95, 0.05, 1.0);
             ImVec4 off_color = ImVec4(0.95, 0.05, 0.05, 1.0);
-            ImGui::TextColored(_this->osmotetradecoder.getAdvancedLink() ? on_color : off_color, "Adv. link  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getAirEncryption() ? on_color : off_color, "Encryption  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getSndcpData() ? on_color : off_color, "SNDCP");
-            ImGui::TextColored(_this->osmotetradecoder.getCircuitData() ? on_color : off_color, "Circuit data  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getVoiceService() ? on_color : off_color, "Voice  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getNormalMode() ? on_color : off_color, "Normal mode");
-            ImGui::TextColored(_this->osmotetradecoder.getMigrationSupported() ? on_color : off_color, "Migration  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getNeverMinimumMode() ? on_color : off_color, "Never min mode  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getPriorityCell() ? on_color : off_color, "Priority cell");
-            ImGui::TextColored(_this->osmotetradecoder.getDeregMandatory() ? on_color : off_color, "Dereg req.  ");ImGui::SameLine();
-            ImGui::TextColored(_this->osmotetradecoder.getRegMandatory() ? on_color : off_color, "Reg req.");
+            if (_this->show_plain_text_values) {
+                ImGui::Text(
+                    "Flags (raw): adv_link=%d air_encryption=%d sndcp=%d circuit_data=%d voice=%d",
+                    _this->osmotetradecoder.getAdvancedLink() ? 1 : 0,
+                    _this->osmotetradecoder.getAirEncryption() ? 1 : 0,
+                    _this->osmotetradecoder.getSndcpData() ? 1 : 0,
+                    _this->osmotetradecoder.getCircuitData() ? 1 : 0,
+                    _this->osmotetradecoder.getVoiceService() ? 1 : 0
+                );
+                ImGui::Text(
+                    "Flags (raw): normal_mode=%d migration=%d never_min_mode=%d priority_cell=%d dereg_req=%d reg_req=%d",
+                    _this->osmotetradecoder.getNormalMode() ? 1 : 0,
+                    _this->osmotetradecoder.getMigrationSupported() ? 1 : 0,
+                    _this->osmotetradecoder.getNeverMinimumMode() ? 1 : 0,
+                    _this->osmotetradecoder.getPriorityCell() ? 1 : 0,
+                    _this->osmotetradecoder.getDeregMandatory() ? 1 : 0,
+                    _this->osmotetradecoder.getRegMandatory() ? 1 : 0
+                );
+            } else {
+                ImGui::TextColored(_this->osmotetradecoder.getAdvancedLink() ? on_color : off_color, "Adv. link  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getAirEncryption() ? on_color : off_color, "Encryption  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getSndcpData() ? on_color : off_color, "SNDCP");
+                ImGui::TextColored(_this->osmotetradecoder.getCircuitData() ? on_color : off_color, "Circuit data  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getVoiceService() ? on_color : off_color, "Voice  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getNormalMode() ? on_color : off_color, "Normal mode");
+                ImGui::TextColored(_this->osmotetradecoder.getMigrationSupported() ? on_color : off_color, "Migration  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getNeverMinimumMode() ? on_color : off_color, "Never min mode  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getPriorityCell() ? on_color : off_color, "Priority cell");
+                ImGui::TextColored(_this->osmotetradecoder.getDeregMandatory() ? on_color : off_color, "Dereg req.  ");ImGui::SameLine();
+                ImGui::TextColored(_this->osmotetradecoder.getRegMandatory() ? on_color : off_color, "Reg req.");
+            }
             if(crc_failed) {
                 style::endDisabled();
             }
@@ -450,6 +502,7 @@ private:
 
 
     int decoder_mode = 0;
+    bool show_plain_text_values = false;
 
 
     //Sequences from osmo-tetra-sq5bpf source
