@@ -140,7 +140,7 @@ jobs:
             chmod +x download_and_patch_mac.sh
             ./download_and_patch_mac.sh
         - name: Cmake
-          run: 'mkdir build && cd build && cmake .. -DSDRPP_MODULE_CMAKE="$GITHUB_WORKSPACE/.github/workflows/sdrpp_module_macos.cmake" -DSDRPP_CORE_ROOT="$GITHUB_WORKSPACE/SDRPlusPlus-master/core/src" -DSDRPP_LIB_ROOT="$GITHUB_WORKSPACE/SDR++.app/Contents/Frameworks" -DCMAKE_PREFIX_PATH="/opt/homebrew" -DCMAKE_BUILD_TYPE=Release'
+          run: 'mkdir build && cd build && cmake .. -DSDRPP_MODULE_CMAKE="$GITHUB_WORKSPACE/.github/workflows/sdrpp_module_hack.cmake" -DSDRPP_CORE_ROOT="$GITHUB_WORKSPACE/SDRPlusPlus-master/core/src" -DSDRPP_LIB_ROOT="$GITHUB_WORKSPACE/SDR++.app/Contents/Frameworks" -DCMAKE_PREFIX_PATH="/opt/homebrew" -DCMAKE_BUILD_TYPE=Release'
         - name: Make
           run: 'cd build && make -j$(sysctl -n hw.ncpu)'
         - name: Upload library
